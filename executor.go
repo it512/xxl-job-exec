@@ -3,7 +3,7 @@ package xxl
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -131,7 +131,7 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	req, _ := ioutil.ReadAll(request.Body)
+	req, _ := io.ReadAll(request.Body)
 	param := &RunReq{}
 	err := json.Unmarshal(req, &param)
 	if err != nil {
@@ -185,7 +185,7 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 func (e *executor) killTask(writer http.ResponseWriter, request *http.Request) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	req, _ := ioutil.ReadAll(request.Body)
+	req, _ := io.ReadAll(request.Body)
 	param := &killReq{}
 	_ = json.Unmarshal(req, &param)
 	if !e.runList.Exists(Int64ToStr(param.JobID)) {
@@ -202,7 +202,7 @@ func (e *executor) killTask(writer http.ResponseWriter, request *http.Request) {
 // 任务日志
 func (e *executor) taskLog(writer http.ResponseWriter, request *http.Request) {
 	var res *LogRes
-	data, err := ioutil.ReadAll(request.Body)
+	data, err := io.ReadAll(request.Body)
 	req := &LogReq{}
 	if err != nil {
 		e.log.Error("日志请求失败:" + err.Error())
@@ -236,7 +236,7 @@ func (e *executor) idleBeat(writer http.ResponseWriter, request *http.Request) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	defer request.Body.Close()
-	req, _ := ioutil.ReadAll(request.Body)
+	req, _ := io.ReadAll(request.Body)
 	param := &idleBeatReq{}
 	err := json.Unmarshal(req, &param)
 	if err != nil {
@@ -277,7 +277,7 @@ func (e *executor) registry() {
 				return
 			}
 			defer result.Body.Close()
-			body, err := ioutil.ReadAll(result.Body)
+			body, err := io.ReadAll(result.Body)
 			if err != nil {
 				e.log.Error("执行器注册失败2:" + err.Error())
 				return
@@ -314,7 +314,7 @@ func (e *executor) registryRemove() {
 		return
 	}
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	e.log.Info("执行器摘除成功:" + string(body))
 }
 
@@ -327,7 +327,7 @@ func (e *executor) callback(task *Task, code int64, msg string) {
 		return
 	}
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		e.log.Error("callback ReadAll err : ", err.Error())
 		return

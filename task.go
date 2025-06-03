@@ -35,7 +35,6 @@ func (t *Task) Run(callback func(code int64, msg string)) {
 	}(t.Cancel)
 	msg := t.fn(t.Ext, t.Param)
 	callback(SuccessCode, msg)
-	return
 }
 
 // Info 任务信息

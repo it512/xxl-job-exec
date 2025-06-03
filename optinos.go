@@ -1,7 +1,6 @@
 package xxl
 
 import (
-	"github.com/go-basic/ipv4"
 	"time"
 )
 
@@ -19,7 +18,7 @@ type Options struct {
 
 func newOptions(opts ...Option) Options {
 	opt := Options{
-		ExecutorIp:   ipv4.LocalIP(),
+		ExecutorIp:   "127.0.0.1",
 		ExecutorPort: DefaultExecutorPort,
 		RegistryKey:  DefaultRegistryKey,
 	}
