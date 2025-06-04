@@ -2,7 +2,7 @@ package xxl
 
 import "sync"
 
-//任务列表 [JobID]执行函数,并行执行时[+LogID]
+// 任务列表 [JobID]执行函数,并行执行时[+LogID]
 type taskList struct {
 	mu   sync.RWMutex
 	data map[string]*Task

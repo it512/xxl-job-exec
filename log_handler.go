@@ -11,7 +11,7 @@ import (
 
 type LogHandler func(req *LogReq) *LogRes
 
-//默认返回
+// 默认返回
 func defaultLogHandler(req *LogReq) *LogRes {
 	return &LogRes{Code: SuccessCode, Msg: "", Content: LogResContent{
 		FromLineNum: req.FromLineNum,
@@ -21,7 +21,7 @@ func defaultLogHandler(req *LogReq) *LogRes {
 	}}
 }
 
-//请求错误
+// 请求错误
 func reqErrLogHandler(w http.ResponseWriter, req *LogReq, err error) {
 	res := &LogRes{Code: FailureCode, Msg: err.Error(), Content: LogResContent{
 		FromLineNum: req.FromLineNum,

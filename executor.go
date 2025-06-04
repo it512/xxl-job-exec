@@ -24,6 +24,8 @@ type Executor interface {
 	Use(middlewares ...Middleware)
 	// RegTask 注册任务
 	RegTask(pattern string, task TaskFunc)
+	// RegJob 注册Job
+	RegJob(pattern string, job Job)
 	// RunTask 运行任务
 	RunTask(writer http.ResponseWriter, request *http.Request)
 	// KillTask 杀死任务
@@ -107,8 +109,8 @@ func (e *executor) Run() (err error) {
 	// 监听端口并提供服务
 	e.log.Info("Starting server at " + e.address)
 	go server.ListenAndServe()
-	quit := make(chan os.Signal)
-	signal.Notify(quit, syscall.SIGKILL, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	e.registryRemove()
 	return nil
@@ -123,7 +125,11 @@ func (e *executor) RegTask(pattern string, task TaskFunc) {
 	var t = &Task{}
 	t.fn = e.chain(task)
 	e.regList.Set(pattern, t)
-	return
+}
+
+// RegJob 注册Job
+func (e *executor) RegJob(pattern string, job Job) {
+	e.RegTask(pattern, JobFunc(job))
 }
 
 // 运行一个任务

@@ -6,8 +6,32 @@ import (
 	"runtime/debug"
 )
 
+type JobResult struct {
+	msg string
+}
+
+func NewJobResult(msg string) *JobResult {
+	return &JobResult{msg: msg}
+}
+
+func (jr JobResult) Sting() string {
+	return jr.msg
+}
+
+var JobOK = NewJobResult("OK")
+
+type Job interface {
+	Run(context.Context, *RunReq) (fmt.Stringer, error)
+}
+
+func JobFunc(job Job) TaskFunc {
+	return func(ctx context.Context, param *RunReq) (fmt.Stringer, error) {
+		return job.Run(ctx, param)
+	}
+}
+
 // TaskFunc 任务执行函数
-type TaskFunc func(cxt context.Context, param *RunReq) string
+type TaskFunc func(cxt context.Context, param *RunReq) (fmt.Stringer, error)
 
 // Task 任务
 type Task struct {
@@ -33,8 +57,12 @@ func (t *Task) Run(callback func(code int64, msg string)) {
 			cancel()
 		}
 	}(t.Cancel)
-	msg := t.fn(t.Ext, t.Param)
-	callback(SuccessCode, msg)
+
+	msger, err := t.fn(t.Ext, t.Param)
+	if err != nil {
+		callback(FailureCode, err.Error())
+	}
+	callback(SuccessCode, msger.String())
 }
 
 // Info 任务信息
