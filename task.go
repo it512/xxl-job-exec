@@ -68,6 +68,7 @@ func (t *Task) Run(callback func(code int64, msg string)) {
 	msger, err := t.fn(t.Ext, t.Param)
 	if err != nil {
 		callback(FailureCode, err.Error())
+		return
 	}
 	callback(SuccessCode, msger.String())
 }
