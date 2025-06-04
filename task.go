@@ -14,11 +14,18 @@ func NewJobResult(msg string) *JobResult {
 	return &JobResult{msg: msg}
 }
 
-func (jr JobResult) Sting() string {
+func (jr JobResult) String() string {
 	return jr.msg
 }
 
 var JobOK = NewJobResult("OK")
+
+func JobRtn(err error) (fmt.Stringer, error) {
+	if err != nil {
+		return nil, err
+	}
+	return JobOK, nil
+}
 
 type Job interface {
 	Run(context.Context, *RunReq) (fmt.Stringer, error)
