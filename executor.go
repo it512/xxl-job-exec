@@ -275,7 +275,7 @@ func (e *executor) registry() {
 	}
 	for {
 		<-t.C
-		t.Reset(time.Second * time.Duration(20)) //20秒心跳防止过期
+		t.Reset(20 * time.Second) //20秒心跳防止过期
 		func() {
 			result, err := e.post("/api/registry", string(param))
 			if err != nil {
