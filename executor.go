@@ -6,11 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -36,8 +33,6 @@ type Executor interface {
 	Beat(writer http.ResponseWriter, request *http.Request)
 	// IdleBeat 忙碌检测
 	IdleBeat(writer http.ResponseWriter, request *http.Request)
-	// Run 运行服务
-	Run() error
 	// Stop 停止服务
 	Stop()
 }
@@ -65,6 +60,8 @@ type executor struct {
 
 	logHandler  LogHandler   //日志查询handler
 	middlewares []Middleware //中间件
+
+	rootCtx context.Context
 }
 
 func (e *executor) Init(opts ...Option) {
@@ -78,6 +75,7 @@ func (e *executor) Init(opts ...Option) {
 	e.runList = &taskList{
 		data: make(map[string]*Task),
 	}
+	e.rootCtx = e.opts.rootCtx
 	e.address = e.opts.ExecutorIp + ":" + e.opts.ExecutorPort
 	go e.registry()
 }
@@ -89,31 +87,6 @@ func (e *executor) LogHandler(handler LogHandler) {
 
 func (e *executor) Use(middlewares ...Middleware) {
 	e.middlewares = middlewares
-}
-
-func (e *executor) Run() (err error) {
-	// 创建路由器
-	mux := http.NewServeMux()
-	// 设置路由规则
-	mux.HandleFunc("/run", e.runTask)
-	mux.HandleFunc("/kill", e.killTask)
-	mux.HandleFunc("/log", e.taskLog)
-	mux.HandleFunc("/beat", e.beat)
-	mux.HandleFunc("/idleBeat", e.idleBeat)
-	// 创建服务器
-	server := &http.Server{
-		Addr:         ":" + e.opts.ExecutorPort,
-		WriteTimeout: time.Second * 3,
-		Handler:      mux,
-	}
-	// 监听端口并提供服务
-	e.log.Info("Starting server at " + e.address)
-	go server.ListenAndServe()
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	e.registryRemove()
-	return nil
 }
 
 func (e *executor) Stop() {
@@ -167,12 +140,11 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 		}
 	}
 
-	cxt := context.Background()
 	task := e.regList.Get(param.ExecutorHandler)
 	if param.ExecutorTimeout > 0 {
-		task.Ext, task.Cancel = context.WithTimeout(cxt, time.Duration(param.ExecutorTimeout)*time.Second)
+		task.Ext, task.Cancel = context.WithTimeout(e.rootCtx, time.Duration(param.ExecutorTimeout)*time.Second)
 	} else {
-		task.Ext, task.Cancel = context.WithCancel(cxt)
+		task.Ext, task.Cancel = context.WithCancel(e.rootCtx)
 	}
 	task.Id = param.JobID
 	task.Name = param.ExecutorHandler

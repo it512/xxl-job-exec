@@ -1,6 +1,7 @@
 package xxl
 
 import (
+	"context"
 	"time"
 )
 
@@ -14,6 +15,8 @@ type Options struct {
 	LogDir       string        `json:"log_dir"`       //日志目录
 
 	l Logger //日志处理
+
+	rootCtx context.Context
 }
 
 func newOptions(opts ...Option) Options {
@@ -21,6 +24,7 @@ func newOptions(opts ...Option) Options {
 		ExecutorIp:   "127.0.0.1",
 		ExecutorPort: DefaultExecutorPort,
 		RegistryKey:  DefaultRegistryKey,
+		rootCtx:      context.Background(),
 	}
 
 	for _, o := range opts {
@@ -80,5 +84,11 @@ func RegistryKey(registryKey string) Option {
 func SetLogger(l Logger) Option {
 	return func(o *Options) {
 		o.l = l
+	}
+}
+
+func SetContext(ctx context.Context) Option {
+	return func(o *Options) {
+		o.rootCtx = ctx
 	}
 }
