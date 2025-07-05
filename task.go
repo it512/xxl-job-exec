@@ -45,14 +45,18 @@ type TaskFunc func(cxt context.Context, param *RunReq) (fmt.Stringer, error)
 type Task struct {
 	Id        int64
 	Name      string
-	Ext       context.Context
-	Param     *RunReq
-	fn        TaskFunc
-	Cancel    context.CancelFunc
 	StartTime int64
 	EndTime   int64
-	//日志
-	log *slog.Logger
+
+	param  *RunReq
+	cancel context.CancelFunc
+	ext    context.Context
+	fn     TaskFunc
+	log    *slog.Logger
+}
+
+func (t Task) Context() context.Context {
+	return t.ext
 }
 
 // Run 运行任务
@@ -64,9 +68,9 @@ func (t *Task) Run(callback func(code int64, msg string)) {
 			callback(FailureCode, fmt.Sprintf("task panic:%v", err))
 			cancel()
 		}
-	}(t.Cancel)
+	}(t.cancel)
 
-	msger, err := t.fn(t.Ext, t.Param)
+	msger, err := t.fn(t.ext, t.param)
 	if err != nil {
 		callback(FailureCode, err.Error())
 		return
@@ -76,5 +80,5 @@ func (t *Task) Run(callback func(code int64, msg string)) {
 
 // Info 任务信息
 func (t *Task) Info() string {
-	return fmt.Sprintf("任务ID[%d]任务名称[%s]参数:%s", t.Id, t.Name, t.Param.ExecutorParams)
+	return fmt.Sprintf("任务ID[%d]任务名称[%s]", t.Id, t.Name)
 }

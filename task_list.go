@@ -2,6 +2,30 @@ package xxl
 
 import "sync"
 
+type taskList2 struct {
+	data sync.Map
+}
+
+func (t *taskList2) Set(key any, val Task) {
+	t.data.Store(key, val)
+}
+func (t *taskList2) Get(key any) (Task, bool) {
+	task, ok := t.data.Load(key)
+	if !ok {
+		return Task{}, false
+	}
+	return task.(Task), true
+}
+
+func (t *taskList2) Del(key any) {
+	t.data.Delete(key)
+}
+
+func (t *taskList2) Exists(key any) bool {
+	_, ok := t.Get(key)
+	return ok
+}
+
 // 任务列表 [JobID]执行函数,并行执行时[+LogID]
 type taskList struct {
 	mu   sync.RWMutex
@@ -22,23 +46,11 @@ func (t *taskList) Get(key string) *Task {
 	return t.data[key]
 }
 
-// GetAll 获取数据
-func (t *taskList) GetAll() map[string]*Task {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	return t.data
-}
-
 // Del 设置数据
 func (t *taskList) Del(key string) {
 	t.mu.Lock()
 	delete(t.data, key)
 	t.mu.Unlock()
-}
-
-// Len 长度
-func (t *taskList) Len() int {
-	return len(t.data)
 }
 
 // Exists Key是否存在

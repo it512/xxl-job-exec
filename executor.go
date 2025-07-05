@@ -127,7 +127,7 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 		if param.ExecutorBlockStrategy == coverEarly { //覆盖之前调度
 			oldTask := e.runList.Get(Int64ToStr(param.JobID))
 			if oldTask != nil {
-				oldTask.Cancel()
+				oldTask.cancel()
 				e.runList.Del(Int64ToStr(oldTask.Id))
 			}
 		} else { //单机串行,丢弃后续调度 都进行阻塞
@@ -139,13 +139,13 @@ func (e *executor) runTask(writer http.ResponseWriter, request *http.Request) {
 
 	task := e.regList.Get(param.ExecutorHandler)
 	if param.ExecutorTimeout > 0 {
-		task.Ext, task.Cancel = context.WithTimeout(e.rootCtx, time.Duration(param.ExecutorTimeout)*time.Second)
+		task.ext, task.cancel = context.WithTimeout(e.rootCtx, time.Duration(param.ExecutorTimeout)*time.Second)
 	} else {
-		task.Ext, task.Cancel = context.WithCancel(e.rootCtx)
+		task.ext, task.cancel = context.WithCancel(e.rootCtx)
 	}
 	task.Id = param.JobID
 	task.Name = param.ExecutorHandler
-	task.Param = param
+	task.param = param
 	task.log = e.log.With(slog.Int64("JobID", param.JobID))
 
 	e.runList.Set(Int64ToStr(task.Id), task)
@@ -169,7 +169,7 @@ func (e *executor) killTask(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	task := e.runList.Get(Int64ToStr(param.JobID))
-	task.Cancel()
+	task.cancel()
 	e.runList.Del(Int64ToStr(param.JobID))
 	_, _ = writer.Write(returnGeneral())
 }
@@ -293,7 +293,7 @@ func (e *executor) registryRemove() {
 // 回调任务列表
 func (e *executor) callback(task *Task, code int64, msg string) {
 	e.runList.Del(Int64ToStr(task.Id))
-	res, err := e.post("/api/callback", string(returnCall(task.Param, code, msg)))
+	res, err := e.post("/api/callback", string(returnCall(task.param, code, msg)))
 	if err != nil {
 		e.log.Error("callback error", slog.Any("error", err))
 		return
