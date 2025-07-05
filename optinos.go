@@ -2,6 +2,7 @@ package xxl
 
 import (
 	"context"
+	"log/slog"
 	"time"
 )
 
@@ -14,9 +15,9 @@ type Options struct {
 	RegistryKey  string        `json:"registry_key"`  //执行器名称
 	LogDir       string        `json:"log_dir"`       //日志目录
 
-	l Logger //日志处理
-
-	rootCtx context.Context
+	log        *slog.Logger
+	rootCtx    context.Context
+	logHandler LogHandler
 }
 
 func newOptions(opts ...Option) Options {
@@ -24,15 +25,14 @@ func newOptions(opts ...Option) Options {
 		ExecutorIp:   "127.0.0.1",
 		ExecutorPort: DefaultExecutorPort,
 		RegistryKey:  DefaultRegistryKey,
-		rootCtx:      context.Background(),
+
+		log:        slog.Default(),
+		rootCtx:    context.Background(),
+		logHandler: defaultLogHandler,
 	}
 
 	for _, o := range opts {
 		o(&opt)
-	}
-
-	if opt.l == nil {
-		opt.l = &logger{}
 	}
 
 	return opt
@@ -81,14 +81,20 @@ func RegistryKey(registryKey string) Option {
 }
 
 // SetLogger 设置日志处理器
-func SetLogger(l Logger) Option {
+func SetLogger(l *slog.Logger) Option {
 	return func(o *Options) {
-		o.l = l
+		o.log = l
 	}
 }
 
 func SetContext(ctx context.Context) Option {
 	return func(o *Options) {
 		o.rootCtx = ctx
+	}
+}
+
+func SetLogHandler(h LogHandler) Option {
+	return func(o *Options) {
+		o.logHandler = h
 	}
 }

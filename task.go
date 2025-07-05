@@ -3,6 +3,7 @@ package xxl
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"runtime/debug"
 )
 
@@ -51,14 +52,14 @@ type Task struct {
 	StartTime int64
 	EndTime   int64
 	//日志
-	log Logger
+	log *slog.Logger
 }
 
 // Run 运行任务
 func (t *Task) Run(callback func(code int64, msg string)) {
 	defer func(cancel func()) {
 		if err := recover(); err != nil {
-			t.log.Info(t.Info()+" panic: %v", err)
+			t.log.Error(t.Info(), slog.Any("error", err))
 			debug.PrintStack() //堆栈跟踪
 			callback(FailureCode, fmt.Sprintf("task panic:%v", err))
 			cancel()
