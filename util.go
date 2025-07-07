@@ -2,16 +2,51 @@ package xxl
 
 import (
 	"encoding/json"
-	"strconv"
+	"io"
+	"net/http"
 )
 
-// Int64ToStr int64 to str
-func Int64ToStr(i int64) string {
-	return strconv.FormatInt(i, 10)
+func JsonTo(code int, resp any, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	return enc.Encode(resp)
 }
 
-// 执行任务回调
-func returnCall(req *RunReq, code int64, msg string) []byte {
+func BindAndClose(r *http.Request, p any) error {
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Bind(r io.Reader, p any) error {
+	dec := json.NewDecoder(r)
+	if err := dec.Decode(p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func newCall(req RunReq, code int, msg string) *call {
+	data := &call{
+		&callElement{
+			LogID:      req.LogID,
+			LogDateTim: req.LogDateTime,
+			ExecuteResult: &ExecuteResult{
+				Code: code,
+				Msg:  msg,
+			},
+			HandleCode: code,
+			HandleMsg:  msg,
+		},
+	}
+	return data
+}
+
+func returnCall2(req RunReq, code int, msg string, w http.ResponseWriter) error {
 	data := call{
 		&callElement{
 			LogID:      req.LogID,
@@ -20,48 +55,17 @@ func returnCall(req *RunReq, code int64, msg string) []byte {
 				Code: code,
 				Msg:  msg,
 			},
-			HandleCode: int(code),
+			HandleCode: code,
 			HandleMsg:  msg,
 		},
 	}
-	str, _ := json.Marshal(data)
-	return str
+	return JsonTo(http.StatusOK, data, w)
 }
 
-// 杀死任务返回
-func returnKill(req *killReq, code int64) []byte {
-	msg := ""
-	if code != SuccessCode {
-		msg = "Task kill err"
-	}
+func returnCode(code int, w http.ResponseWriter) error {
 	data := res{
 		Code: code,
-		Msg:  msg,
-	}
-	str, _ := json.Marshal(data)
-	return str
-}
-
-// 忙碌返回
-func returnIdleBeat(code int64) []byte {
-	msg := ""
-	if code != SuccessCode {
-		msg = "Task is busy"
-	}
-	data := res{
-		Code: code,
-		Msg:  msg,
-	}
-	str, _ := json.Marshal(data)
-	return str
-}
-
-// 通用返回
-func returnGeneral() []byte {
-	data := &res{
-		Code: SuccessCode,
 		Msg:  "",
 	}
-	str, _ := json.Marshal(data)
-	return str
+	return JsonTo(http.StatusOK, data, w)
 }

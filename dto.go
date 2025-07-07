@@ -2,8 +2,8 @@ package xxl
 
 // 通用响应
 type res struct {
-	Code int64 `json:"code"` // 200 表示正常、其他失败
-	Msg  any   `json:"msg"`  // 错误提示消息
+	Code int `json:"code"` // 200 表示正常、其他失败
+	Msg  any `json:"msg"`  // 错误提示消息
 }
 
 /*****************  上行参数  *********************/
@@ -29,8 +29,8 @@ type callElement struct {
 
 // ExecuteResult 任务执行结果 200 表示任务执行正常，500表示失败
 type ExecuteResult struct {
-	Code int64 `json:"code"`
-	Msg  any   `json:"msg"`
+	Code int `json:"code"`
+	Msg  any `json:"msg"`
 }
 
 /*****************  下行参数  *********************/

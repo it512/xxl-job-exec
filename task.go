@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"runtime/debug"
 )
 
 type JobResult struct {
@@ -28,57 +27,41 @@ func JobRtn(err error) (fmt.Stringer, error) {
 	return JobOK, nil
 }
 
-type Job interface {
-	Run(context.Context, *RunReq) (fmt.Stringer, error)
-}
-
-func JobFunc(job Job) TaskFunc {
-	return func(ctx context.Context, param *RunReq) (fmt.Stringer, error) {
-		return job.Run(ctx, param)
-	}
-}
-
 // TaskFunc 任务执行函数
-type TaskFunc func(cxt context.Context, param *RunReq) (fmt.Stringer, error)
+// type TaskFunc func(cxt context.Context, param *RunReq) (fmt.Stringer, error)
+type TaskFunc func(cxt context.Context, task Task) (fmt.Stringer, error)
 
-// Task 任务
+type TaskHandle struct {
+	Name string
+	fn   TaskFunc
+}
+
 type Task struct {
-	Id        int64
-	Name      string
+	ID    int64
+	Name  string
+	Param RunReq
+
 	StartTime int64
 	EndTime   int64
-
-	param  *RunReq
-	cancel context.CancelFunc
-	ext    context.Context
-	fn     TaskFunc
-	log    *slog.Logger
+	cancel    context.CancelFunc
+	ext       context.Context
+	fn        TaskFunc
+	log       *slog.Logger
 }
 
-func (t Task) Context() context.Context {
-	return t.ext
-}
-
-// Run 运行任务
-func (t *Task) Run(callback func(code int64, msg string)) {
+func (t Task) Run(callback func(code int, msg string)) {
 	defer func(cancel func()) {
 		if err := recover(); err != nil {
-			t.log.Error(t.Info(), slog.Any("error", err))
-			debug.PrintStack() //堆栈跟踪
+			t.log.Error("error", slog.Any("error", err))
 			callback(FailureCode, fmt.Sprintf("task panic:%v", err))
 			cancel()
 		}
 	}(t.cancel)
 
-	msger, err := t.fn(t.ext, t.param)
+	msger, err := t.fn(t.ext, t)
 	if err != nil {
 		callback(FailureCode, err.Error())
 		return
 	}
 	callback(SuccessCode, msger.String())
-}
-
-// Info 任务信息
-func (t *Task) Info() string {
-	return fmt.Sprintf("任务ID[%d]任务名称[%s]", t.Id, t.Name)
 }
