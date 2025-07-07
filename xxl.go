@@ -6,6 +6,16 @@ import (
 	"net/http"
 )
 
+// Middleware 中间件构造函数
+type Middleware func(TaskFunc) TaskFunc
+
+func (e *Executor) chain(next TaskFunc) TaskFunc {
+	for i := range e.middlewares {
+		next = e.middlewares[len(e.middlewares)-1-i](next)
+	}
+	return next
+}
+
 // 响应码
 const (
 	SuccessCode = 200
