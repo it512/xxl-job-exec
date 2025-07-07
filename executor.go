@@ -26,8 +26,8 @@ func NewExecutor(opts ...Option) *Executor {
 type Executor struct {
 	opts    Options
 	address string
-	regList taskList2 //注册任务列表
-	runList taskList3 //正在执行任务列表
+	regList *taskList[string, TaskHead] //注册任务列表
+	runList *taskList[int64, Task]      //正在执行任务列表
 
 	doer Doer
 
@@ -41,6 +41,9 @@ func (e *Executor) Init(opts ...Option) {
 	for _, o := range opts {
 		o(&e.opts)
 	}
+
+	e.regList = newTaskHeadList()
+	e.runList = newTaskList()
 
 	e.log = e.opts.log
 	e.rootCtx = e.opts.rootCtx
@@ -60,7 +63,7 @@ func (e *Executor) Stop() {
 
 // RegTask 注册任务
 func (e *Executor) RegTask(pattern string, task TaskFunc) {
-	t := TaskHandle{Name: pattern}
+	t := TaskHead{Name: pattern}
 	t.fn = e.chain(task)
 	e.regList.Set(pattern, t)
 }

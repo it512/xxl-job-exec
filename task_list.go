@@ -2,51 +2,40 @@ package xxl
 
 import "sync"
 
-// 任务列表 [JobID]执行函数,并行执行时[+LogID]
-type taskList2 struct {
+type taskList[K comparable, V any] struct {
 	data sync.Map
 }
 
-func (t *taskList2) Set(key any, val TaskHandle) {
+func newTaskHeadList() *taskList[string, TaskHead] {
+	return &taskList[string, TaskHead]{}
+}
+
+func newTaskList() *taskList[int64, Task] {
+	return &taskList[int64, Task]{}
+}
+
+func (t *taskList[K, V]) Set(key K, val V) {
 	t.data.Store(key, val)
 }
 
-func (t *taskList2) Get(key any) (TaskHandle, bool) {
-	task, ok := t.data.Load(key)
-	if !ok {
-		return TaskHandle{}, false
-	}
-	return task.(TaskHandle), true
-}
-
-func (t *taskList2) Del(key any) {
-	t.data.Delete(key)
-}
-
-type taskList3 struct {
-	data sync.Map
-}
-
-func (t *taskList3) Set(key any, val Task) {
-	t.data.Store(key, val)
-}
-
-func (t *taskList3) Get(key any) (Task, bool) {
-	task, ok := t.data.Load(key)
-	if !ok {
-		return Task{}, false
-	}
-	return task.(Task), true
-}
-
-func (t *taskList3) Del(key any) {
-	t.data.Delete(key)
-}
-
-func (t *taskList3) LoadAndDel(key any) (Task, bool) {
-	task, ok := t.data.LoadAndDelete(key)
+func (t *taskList[K, V]) Get(key K) (v V, ok bool) {
+	var a any
+	a, ok = t.data.Load(key)
 	if ok {
-		return task.(Task), ok
+		v = a.(V)
 	}
-	return Task{}, false
+	return
+}
+
+func (t *taskList[K, V]) Del(key K) {
+	t.data.Delete(key)
+}
+
+func (t *taskList[K, V]) LoadAndDel(key K) (v V, ok bool) {
+	var a any
+	a, ok = t.data.LoadAndDelete(key)
+	if ok {
+		v = a.(V)
+	}
+	return
 }

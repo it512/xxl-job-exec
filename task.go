@@ -6,32 +6,10 @@ import (
 	"log/slog"
 )
 
-type JobResult struct {
-	msg string
-}
-
-func NewJobResult(msg string) *JobResult {
-	return &JobResult{msg: msg}
-}
-
-func (jr JobResult) String() string {
-	return jr.msg
-}
-
-var JobOK = NewJobResult("OK")
-
-func JobRtn(err error) (fmt.Stringer, error) {
-	if err != nil {
-		return nil, err
-	}
-	return JobOK, nil
-}
-
 // TaskFunc 任务执行函数
-// type TaskFunc func(cxt context.Context, param *RunReq) (fmt.Stringer, error)
 type TaskFunc func(cxt context.Context, task Task) (fmt.Stringer, error)
 
-type TaskHandle struct {
+type TaskHead struct {
 	Name string
 	fn   TaskFunc
 }
