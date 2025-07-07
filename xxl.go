@@ -1,5 +1,17 @@
 package xxl
 
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+)
+
+// 响应码
+const (
+	SuccessCode = 200
+	FailureCode = 500
+)
+
 // 通用响应
 type res struct {
 	Code int `json:"code"` // 200 表示正常、其他失败
@@ -88,4 +100,68 @@ type LogResContent struct {
 	ToLineNum   int    `json:"toLineNum"`   // 本次请求，日志结束行号
 	LogContent  string `json:"logContent"`  // 本次请求日志内容
 	IsEnd       bool   `json:"isEnd"`       // 日志是否全部加载完
+}
+
+func JsonTo(code int, resp any, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	return enc.Encode(resp)
+}
+
+func BindAndClose(r *http.Request, p any) error {
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func Bind(r io.Reader, p any) error {
+	dec := json.NewDecoder(r)
+	if err := dec.Decode(p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func newCall(req RunReq, code int, msg string) *call {
+	data := &call{
+		&callElement{
+			LogID:      req.LogID,
+			LogDateTim: req.LogDateTime,
+			ExecuteResult: &ExecuteResult{
+				Code: code,
+				Msg:  msg,
+			},
+			HandleCode: code,
+			HandleMsg:  msg,
+		},
+	}
+	return data
+}
+
+func returnCall2(req RunReq, code int, msg string, w http.ResponseWriter) error {
+	data := call{
+		&callElement{
+			LogID:      req.LogID,
+			LogDateTim: req.LogDateTime,
+			ExecuteResult: &ExecuteResult{
+				Code: code,
+				Msg:  msg,
+			},
+			HandleCode: code,
+			HandleMsg:  msg,
+		},
+	}
+	return JsonTo(http.StatusOK, data, w)
+}
+
+func returnCode(code int, w http.ResponseWriter) error {
+	data := res{
+		Code: code,
+		Msg:  "",
+	}
+	return JsonTo(http.StatusOK, data, w)
 }
