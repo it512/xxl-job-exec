@@ -10,8 +10,8 @@ func newTaskHeadList() *taskList[string, TaskHead] {
 	return &taskList[string, TaskHead]{}
 }
 
-func newTaskList() *taskList[int64, Task] {
-	return &taskList[int64, Task]{}
+func newTaskList() *taskList[int64, *Task] {
+	return &taskList[int64, *Task]{}
 }
 
 func (t *taskList[K, V]) Set(key K, val V) {
