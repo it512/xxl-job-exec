@@ -3,46 +3,25 @@ package xxl
 import (
 	"context"
 	"log/slog"
-	"time"
 )
 
 type Options struct {
-	ServerAddr   string        `json:"server_addr"`   //调度中心地址
-	AccessToken  string        `json:"access_token"`  //请求令牌
-	Timeout      time.Duration `json:"timeout"`       //接口超时时间
-	ExecutorIp   string        `json:"executor_ip"`   //本地(执行器)IP(可自行获取)
-	ExecutorPort string        `json:"executor_port"` //本地(执行器)端口
-	RegistryKey  string        `json:"registry_key"`  //执行器名称
-	LogDir       string        `json:"log_dir"`       //日志目录
+	ServerAddr  string `json:"server_addr"`  //调度中心地址
+	AccessToken string `json:"access_token"` //请求令牌
+	ExecutorURL string `json:"executor_url"` //本地(执行器)URL
+	RegistryKey string `json:"registry_key"` //执行器名称
 
 	log        *slog.Logger
+	client     Doer
 	rootCtx    context.Context
 	logHandler LogHandler
-}
-
-func newOptions(opts ...Option) Options {
-	opt := Options{
-		ExecutorIp:   "127.0.0.1",
-		ExecutorPort: DefaultExecutorPort,
-		RegistryKey:  DefaultRegistryKey,
-
-		log:        slog.Default(),
-		rootCtx:    context.Background(),
-		logHandler: defaultLogHandler,
-	}
-
-	for _, o := range opts {
-		o(&opt)
-	}
-
-	return opt
 }
 
 type Option func(o *Options)
 
 var (
-	DefaultExecutorPort = "9999"
-	DefaultRegistryKey  = "golang-jobs"
+	DefaultExecutorPort = "19999"
+	DefaultRegistryKey  = "golang-jobs-plus"
 )
 
 // ServerAddr 设置调度中心地址
@@ -59,17 +38,10 @@ func AccessToken(token string) Option {
 	}
 }
 
-// ExecutorIp 设置执行器IP
-func ExecutorIp(ip string) Option {
+// ExecutorURL 设置执行器URL
+func ExecutorURL(url string) Option {
 	return func(o *Options) {
-		o.ExecutorIp = ip
-	}
-}
-
-// ExecutorPort 设置执行器端口
-func ExecutorPort(port string) Option {
-	return func(o *Options) {
-		o.ExecutorPort = port
+		o.ExecutorURL = url
 	}
 }
 
@@ -96,5 +68,11 @@ func SetContext(ctx context.Context) Option {
 func SetLogHandler(h LogHandler) Option {
 	return func(o *Options) {
 		o.logHandler = h
+	}
+}
+
+func SetHttpClient(doer Doer) Option {
+	return func(o *Options) {
+		o.client = doer
 	}
 }

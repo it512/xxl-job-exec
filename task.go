@@ -7,7 +7,7 @@ import (
 )
 
 // TaskFunc 任务执行函数
-type TaskFunc func(cxt context.Context, task *Task) (fmt.Stringer, error)
+type TaskFunc func(cxt context.Context, task *Task) error
 
 type TaskHead struct {
 	Name string
@@ -25,22 +25,21 @@ type Task struct {
 	ext       context.Context
 	fn        TaskFunc
 
-	excec *Executor
+	e *Executor
 }
 
 func (t *Task) Run(callback func(code int, msg string)) {
 	defer func(cancel func()) {
 		if err := recover(); err != nil {
-			t.excec.log.Error("error", slog.Any("error", err))
+			t.e.opts.log.Error("error", slog.Any("error", err))
 			callback(FailureCode, fmt.Sprintf("task panic:%v", err))
 			cancel()
 		}
 	}(t.cancel)
 
-	msger, err := t.fn(t.ext, t)
-	if err != nil {
+	if err := t.fn(t.ext, t); err != nil {
 		callback(FailureCode, err.Error())
 		return
 	}
-	callback(SuccessCode, msger.String())
+	callback(SuccessCode, "OK")
 }

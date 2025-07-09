@@ -6,6 +6,12 @@ import (
 	"net/http"
 )
 
+// 响应码
+const (
+	SuccessCode = 200
+	FailureCode = 500
+)
+
 // Middleware 中间件构造函数
 type Middleware func(TaskFunc) TaskFunc
 
@@ -15,12 +21,6 @@ func (e *Executor) chain(next TaskFunc) TaskFunc {
 	}
 	return next
 }
-
-// 响应码
-const (
-	SuccessCode = 200
-	FailureCode = 500
-)
 
 // 通用响应
 type Return[T any] struct {
@@ -42,9 +42,9 @@ type RegistryParam struct {
 type CallbackParamList []HandleCallbackParam
 
 type HandleCallbackParam struct {
-	LogID         int64          `json:"logId"`
-	LogDateTim    int64          `json:"logDateTim"`
-	ExecuteResult *ExecuteResult `json:"executeResult omitempty"` // 3.1.1 不再需要
+	LogID         int64         `json:"logId"`
+	LogDateTim    int64         `json:"logDateTim"`
+	ExecuteResult ExecuteResult `json:"executeResult omitempty"` // 3.1.1 不再需要
 	//以下是7.31版本 v2.3.0 Release所使用的字段
 	HandleCode int    `json:"handleCode"` //200表示正常,500表示失败
 	HandleMsg  string `json:"handleMsg"`
@@ -135,7 +135,7 @@ func newCallback(t TriggerParam, code int, msg string) HandleCallbackParam {
 	return HandleCallbackParam{
 		LogID:      t.LogID,
 		LogDateTim: t.LogDateTime,
-		ExecuteResult: &ExecuteResult{
+		ExecuteResult: ExecuteResult{
 			Code: code,
 			Msg:  msg,
 		},
