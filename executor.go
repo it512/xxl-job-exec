@@ -7,8 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/go-resty/resty/v2"
 )
 
 type Doer interface {
@@ -141,7 +139,7 @@ func (e *Executor) taskLog(w http.ResponseWriter, r *http.Request) {
 	if err := BindAndClose(r, &logParam); err != nil {
 		e.log.Error("日志请求失败", slog.Any("error", err))
 		//reqErrLogHandler(writer, req, err)
-		JsonTo(http.StatusInternalServerError, reqErrLogHandler2(err), w)
+		JsonTo(http.StatusInternalServerError, reqErrLogHandler(err), w)
 		return
 	}
 	e.log.Info("日志请求参数", slog.Any("req", logParam))
@@ -252,19 +250,6 @@ func (e *Executor) callback(task *Task, code int, msg string) {
 		return
 	}
 	e.log.Info("任务回调成功", slog.Any("body", rr))
-}
-
-func (e *Executor) post2(action string, body any) (rtn Return[string], err error) {
-	ry := resty.New().SetBaseURL(e.opts.ServerAddr)
-
-	_, err = ry.R().
-		SetBody(body).
-		SetResult(&rtn).
-		ForceContentType("application/json;charset=UTF-8").
-		SetHeader("XXL-JOB-ACCESS-TOKEN", e.opts.AccessToken).
-		Post(action)
-
-	return
 }
 
 func (e *Executor) post(action string, body any) (*http.Response, error) {
