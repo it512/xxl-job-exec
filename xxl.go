@@ -99,15 +99,6 @@ type LogParam struct {
 	FromLineNum int   `json:"fromLineNum"` // 日志开始行号，滚动加载日志
 }
 
-// LogResultReturn 日志响应
-/*
-type LogResultReturn struct {
-	Code    int       `json:"code"`    // 200 表示正常、其他失败
-	Msg     string    `json:"msg"`     // 错误提示消息
-	Content LogResult `json:"content"` // 日志响应内容
-}
-*/
-
 // LogResult 日志响应内容
 type LogResult struct {
 	FromLineNum int    `json:"fromLineNum"` // 本次请求，日志开始行数
@@ -140,10 +131,10 @@ func Bind(r io.Reader, p any) error {
 	return nil
 }
 
-func newCallback(t *Task, code int, msg string) HandleCallbackParam {
+func newCallback(t TriggerParam, code int, msg string) HandleCallbackParam {
 	return HandleCallbackParam{
-		LogID:      t.Param.LogID,
-		LogDateTim: t.Param.LogDateTime,
+		LogID:      t.LogID,
+		LogDateTim: t.LogDateTime,
 		ExecuteResult: &ExecuteResult{
 			Code: code,
 			Msg:  msg,
@@ -153,42 +144,11 @@ func newCallback(t *Task, code int, msg string) HandleCallbackParam {
 	}
 }
 
-func returnCall2(req TriggerParam, code int, msg string, w http.ResponseWriter) error {
-	data := CallbackParamList{
-		HandleCallbackParam{
-			LogID:      req.LogID,
-			LogDateTim: req.LogDateTime,
-			ExecuteResult: &ExecuteResult{
-				Code: code,
-				Msg:  msg,
-			},
-			HandleCode: code,
-			HandleMsg:  msg,
-		},
-	}
-	return JsonTo(http.StatusOK, data, w)
-}
-
-func returnCode(code int, w http.ResponseWriter) error {
-	data := Return[string]{
-		Code: code,
-	}
-	return JsonTo(http.StatusOK, data, w)
-}
-
-func returnCode2[T any](code int, msg string, content T) Return[T] {
+func newReturn[T any](code int, msg string, content T) Return[T] {
 	data := Return[T]{
 		Code:    code,
 		Msg:     msg,
 		Content: content,
-	}
-	return data
-}
-
-func returnCodeT(code int, msg string) Return[any] {
-	data := Return[any]{
-		Code: code,
-		Msg:  msg,
 	}
 	return data
 }

@@ -8,7 +8,7 @@ type LogHandler func(req LogParam) Return[LogResult]
 
 // 默认返回
 func defaultLogHandler(req LogParam) Return[LogResult] {
-	return returnCode2[LogResult](SuccessCode, "",
+	return newReturn[LogResult](SuccessCode, "",
 		LogResult{
 			FromLineNum: req.FromLineNum,
 			ToLineNum:   2,
@@ -18,7 +18,7 @@ func defaultLogHandler(req LogParam) Return[LogResult] {
 }
 
 func reqErrLogHandler2(err error) Return[LogResult] {
-	return returnCode2(FailureCode, err.Error(),
+	return newReturn(FailureCode, err.Error(),
 		LogResult{
 			FromLineNum: 0,
 			ToLineNum:   0,

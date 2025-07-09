@@ -70,11 +70,11 @@ func (e *Executor) RegTask(pattern string, task TaskFunc) {
 }
 
 // 运行一个任务
-func (e *Executor) runTask(w http.ResponseWriter, request *http.Request) {
+func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 	var param TriggerParam
-	if err := BindAndClose(request, &param); err != nil {
+	if err := BindAndClose(r, &param); err != nil {
 		e.log.Error("参数解析错误", slog.Any("error", err))
-		returnCall2(param, FailureCode, "params err", w)
+		JsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "params err")}, w)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (e *Executor) runTask(w http.ResponseWriter, request *http.Request) {
 			e.runList.Del(oldTask.ID)
 		} else { //单机串行,丢弃后续调度 都进行阻塞
 			e.log.Error("任务已经在运行了", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-			returnCall2(param, FailureCode, "There are tasks running", w)
+			JsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "tasks already running")}, w)
 			return
 		}
 	}
@@ -108,7 +108,7 @@ func (e *Executor) runTask(w http.ResponseWriter, request *http.Request) {
 		}
 	} else {
 		e.log.Error("任务没有注册", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-		returnCall2(param, FailureCode, "Task not registered", w)
+		JsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "task not registred")}, w)
 		return
 	}
 
@@ -117,23 +117,21 @@ func (e *Executor) runTask(w http.ResponseWriter, request *http.Request) {
 		e.callback(task, code, msg)
 	})
 	e.log.Info("任务开始执行", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-	returnCode(SuccessCode, w)
+	JsonTo(http.StatusOK, ReturnSuccess, w)
 }
 
 // 删除一个任务
-func (e *Executor) killTask(w http.ResponseWriter, request *http.Request) {
+func (e *Executor) killTask(w http.ResponseWriter, r *http.Request) {
 	var param KillParam
-	BindAndClose(request, &param)
+	BindAndClose(r, &param)
 
 	if task, ok := e.runList.LoadAndDel(param.JobID); ok {
 		task.cancel()
-		// returnCode(SuccessCode, w)
 		JsonTo(http.StatusOK, ReturnSuccess, w)
 		return
 	}
 
 	e.log.Error("任务没有运行", slog.Int64("JobID", param.JobID))
-	// returnCode(FailureCode, w)
 	JsonTo(http.StatusInternalServerError, ReturnFailure, w)
 }
 
@@ -152,32 +150,31 @@ func (e *Executor) taskLog(w http.ResponseWriter, r *http.Request) {
 }
 
 // 心跳检测
-func (e *Executor) beat(writer http.ResponseWriter, _ *http.Request) {
+func (e *Executor) beat(w http.ResponseWriter, _ *http.Request) {
 	e.log.Info("心跳检测")
-	returnCode(SuccessCode, writer)
+	JsonTo(http.StatusOK, ReturnSuccess, w)
 }
 
 // 忙碌检测
-func (e *Executor) idleBeat(writer http.ResponseWriter, request *http.Request) {
+func (e *Executor) idleBeat(w http.ResponseWriter, r *http.Request) {
 	var param IdleBeatParam
-	if err := BindAndClose(request, &param); err != nil {
+	if err := BindAndClose(r, &param); err != nil {
 		e.log.Error("参数解析错误", slog.Any("error", err))
-		returnCode(FailureCode, writer)
+		JsonTo(http.StatusInternalServerError, ReturnFailure, w)
 		return
 	}
 	e.log.Info("忙碌检测任务参数", slog.Any("param", param))
 
 	if _, ok := e.runList.Get(param.JobID); ok {
-		returnCode(FailureCode, writer)
 		e.log.Error("idleBeat任务正在运行", slog.Int64("JobID", param.JobID))
+		JsonTo(http.StatusInternalServerError, ReturnFailure, w)
 		return
 	}
-	returnCode(SuccessCode, writer)
+	JsonTo(http.StatusOK, ReturnSuccess, w)
 }
 
 // 注册执行器到调度中心
 func (e *Executor) registry() {
-
 	t := time.NewTimer(time.Second * 0) //初始立即执行
 	defer t.Stop()
 	regParam := &RegistryParam{
@@ -243,7 +240,7 @@ func (e *Executor) registryRemove() {
 // 回调任务列表
 func (e *Executor) callback(task *Task, code int, msg string) {
 	e.runList.Del(task.ID)
-	r, err := e.post("/api/callback", CallbackParamList{newCallback(task, code, msg)})
+	r, err := e.post("/api/callback", CallbackParamList{newCallback(task.Param, code, msg)})
 	if err != nil {
 		e.log.Error("callback error", slog.Any("error", err))
 		return
@@ -289,28 +286,28 @@ func (e *Executor) post(action string, body any) (*http.Response, error) {
 }
 
 // RunTask 运行任务
-func (e *Executor) RunTask(writer http.ResponseWriter, request *http.Request) {
-	e.runTask(writer, request)
+func (e *Executor) RunTask(w http.ResponseWriter, r *http.Request) {
+	e.runTask(w, r)
 }
 
 // KillTask 删除任务
-func (e *Executor) KillTask(writer http.ResponseWriter, request *http.Request) {
-	e.killTask(writer, request)
+func (e *Executor) KillTask(w http.ResponseWriter, r *http.Request) {
+	e.killTask(w, r)
 }
 
 // TaskLog 任务日志
-func (e *Executor) TaskLog(writer http.ResponseWriter, request *http.Request) {
-	e.taskLog(writer, request)
+func (e *Executor) TaskLog(w http.ResponseWriter, r *http.Request) {
+	e.taskLog(w, r)
 }
 
 // Beat 心跳检测
-func (e *Executor) Beat(writer http.ResponseWriter, request *http.Request) {
-	e.beat(writer, request)
+func (e *Executor) Beat(w http.ResponseWriter, r *http.Request) {
+	e.beat(w, r)
 }
 
 // IdleBeat 忙碌检测
-func (e *Executor) IdleBeat(writer http.ResponseWriter, request *http.Request) {
-	e.idleBeat(writer, request)
+func (e *Executor) IdleBeat(w http.ResponseWriter, r *http.Request) {
+	e.idleBeat(w, r)
 }
 
 func (e *Executor) Handle() http.Handler {
