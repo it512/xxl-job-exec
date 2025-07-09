@@ -23,36 +23,38 @@ const (
 )
 
 // 通用响应
-type res struct {
-	Code int `json:"code"` // 200 表示正常、其他失败
-	Msg  any `json:"msg"`  // 错误提示消息
+type Return[T any] struct {
+	Code    int    `json:"code"`              // 200 表示正常、其他失败
+	Msg     string `json:"msg omitempty"`     // 错误提示消息
+	Content T      `json:"content omitempty"` // 响应内容
 }
 
 /*****************  上行参数  *********************/
 
-// Registry 注册参数
-type Registry struct {
+// RegistryParam 注册参数
+type RegistryParam struct {
 	RegistryGroup string `json:"registryGroup"`
 	RegistryKey   string `json:"registryKey"`
 	RegistryValue string `json:"registryValue"`
 }
 
 // 执行器执行完任务后，回调任务结果时使用
-type call []*callElement
+type CallbackParamList []HandleCallbackParam
 
-type callElement struct {
+type HandleCallbackParam struct {
 	LogID         int64          `json:"logId"`
 	LogDateTim    int64          `json:"logDateTim"`
-	ExecuteResult *ExecuteResult `json:"executeResult"`
+	ExecuteResult *ExecuteResult `json:"executeResult omitempty"` // 3.1.1 不再需要
 	//以下是7.31版本 v2.3.0 Release所使用的字段
 	HandleCode int    `json:"handleCode"` //200表示正常,500表示失败
 	HandleMsg  string `json:"handleMsg"`
 }
 
 // ExecuteResult 任务执行结果 200 表示任务执行正常，500表示失败
+// 3.1.1不在需要
 type ExecuteResult struct {
-	Code int `json:"code"`
-	Msg  any `json:"msg"`
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
 }
 
 /*****************  下行参数  *********************/
@@ -64,8 +66,8 @@ const (
 	coverEarly      = "COVER_EARLY"      //覆盖之前调度
 )
 
-// RunReq 触发任务请求参数
-type RunReq struct {
+// TriggerParam 触发任务请求参数
+type TriggerParam struct {
 	JobID                 int64  `json:"jobId"`                 // 任务ID
 	ExecutorHandler       string `json:"executorHandler"`       // 任务标识
 	ExecutorParams        string `json:"executorParams"`        // 任务参数
@@ -81,31 +83,33 @@ type RunReq struct {
 }
 
 // 终止任务请求参数
-type killReq struct {
+type KillParam struct {
 	JobID int64 `json:"jobId"` // 任务ID
 }
 
 // 忙碌检测请求参数
-type idleBeatReq struct {
+type IdleBeatParam struct {
 	JobID int64 `json:"jobId"` // 任务ID
 }
 
-// LogReq 日志请求
-type LogReq struct {
+// LogParam 日志请求
+type LogParam struct {
 	LogDateTim  int64 `json:"logDateTim"`  // 本次调度日志时间
 	LogID       int64 `json:"logId"`       // 本次调度日志ID
 	FromLineNum int   `json:"fromLineNum"` // 日志开始行号，滚动加载日志
 }
 
-// LogRes 日志响应
-type LogRes struct {
-	Code    int64         `json:"code"`    // 200 表示正常、其他失败
-	Msg     string        `json:"msg"`     // 错误提示消息
-	Content LogResContent `json:"content"` // 日志响应内容
+// LogResultReturn 日志响应
+/*
+type LogResultReturn struct {
+	Code    int       `json:"code"`    // 200 表示正常、其他失败
+	Msg     string    `json:"msg"`     // 错误提示消息
+	Content LogResult `json:"content"` // 日志响应内容
 }
+*/
 
-// LogResContent 日志响应内容
-type LogResContent struct {
+// LogResult 日志响应内容
+type LogResult struct {
 	FromLineNum int    `json:"fromLineNum"` // 本次请求，日志开始行数
 	ToLineNum   int    `json:"toLineNum"`   // 本次请求，日志结束行号
 	LogContent  string `json:"logContent"`  // 本次请求日志内容
@@ -136,25 +140,22 @@ func Bind(r io.Reader, p any) error {
 	return nil
 }
 
-func newCall(req RunReq, code int, msg string) *call {
-	data := &call{
-		&callElement{
-			LogID:      req.LogID,
-			LogDateTim: req.LogDateTime,
-			ExecuteResult: &ExecuteResult{
-				Code: code,
-				Msg:  msg,
-			},
-			HandleCode: code,
-			HandleMsg:  msg,
+func newCallback(t *Task, code int, msg string) HandleCallbackParam {
+	return HandleCallbackParam{
+		LogID:      t.Param.LogID,
+		LogDateTim: t.Param.LogDateTime,
+		ExecuteResult: &ExecuteResult{
+			Code: code,
+			Msg:  msg,
 		},
+		HandleCode: code,
+		HandleMsg:  msg,
 	}
-	return data
 }
 
-func returnCall2(req RunReq, code int, msg string, w http.ResponseWriter) error {
-	data := call{
-		&callElement{
+func returnCall2(req TriggerParam, code int, msg string, w http.ResponseWriter) error {
+	data := CallbackParamList{
+		HandleCallbackParam{
 			LogID:      req.LogID,
 			LogDateTim: req.LogDateTime,
 			ExecuteResult: &ExecuteResult{
@@ -169,9 +170,28 @@ func returnCall2(req RunReq, code int, msg string, w http.ResponseWriter) error 
 }
 
 func returnCode(code int, w http.ResponseWriter) error {
-	data := res{
+	data := Return[string]{
 		Code: code,
-		Msg:  "",
 	}
 	return JsonTo(http.StatusOK, data, w)
 }
+
+func returnCode2[T any](code int, msg string, content T) Return[T] {
+	data := Return[T]{
+		Code:    code,
+		Msg:     msg,
+		Content: content,
+	}
+	return data
+}
+
+func returnCodeT(code int, msg string) Return[any] {
+	data := Return[any]{
+		Code: code,
+		Msg:  msg,
+	}
+	return data
+}
+
+var ReturnSuccess = Return[string]{Code: SuccessCode}
+var ReturnFailure = Return[string]{Code: FailureCode}

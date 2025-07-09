@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type Doer interface {
@@ -27,7 +28,7 @@ type Executor struct {
 	opts    Options
 	address string
 	regList *taskList[string, TaskHead] //注册任务列表
-	runList *taskList[int64, Task]      //正在执行任务列表
+	runList *taskList[int64, *Task]     //正在执行任务列表
 
 	doer Doer
 
@@ -69,11 +70,11 @@ func (e *Executor) RegTask(pattern string, task TaskFunc) {
 }
 
 // 运行一个任务
-func (e *Executor) runTask(writer http.ResponseWriter, request *http.Request) {
-	var param RunReq
+func (e *Executor) runTask(w http.ResponseWriter, request *http.Request) {
+	var param TriggerParam
 	if err := BindAndClose(request, &param); err != nil {
 		e.log.Error("参数解析错误", slog.Any("error", err))
-		returnCall2(param, FailureCode, "params err", writer)
+		returnCall2(param, FailureCode, "params err", w)
 		return
 	}
 
@@ -86,29 +87,28 @@ func (e *Executor) runTask(writer http.ResponseWriter, request *http.Request) {
 			e.runList.Del(oldTask.ID)
 		} else { //单机串行,丢弃后续调度 都进行阻塞
 			e.log.Error("任务已经在运行了", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-			returnCall2(param, FailureCode, "There are tasks running", writer)
+			returnCall2(param, FailureCode, "There are tasks running", w)
 			return
 		}
 	}
 
-	var (
-		task Task
-	)
+	task := &Task{
+		ID:    param.JobID,
+		Name:  param.ExecutorHandler,
+		excec: e,
+		Param: param,
+	}
 
 	if th, ok := e.regList.Get(param.ExecutorHandler); ok {
+		task.fn = th.fn
 		if param.ExecutorTimeout > 0 {
 			task.ext, task.cancel = context.WithTimeout(e.rootCtx, time.Duration(param.ExecutorTimeout)*time.Second)
 		} else {
 			task.ext, task.cancel = context.WithCancel(e.rootCtx)
 		}
-		task.ID = param.JobID
-		task.fn = th.fn
-		task.Name = param.ExecutorHandler
-		task.Param = param
-		task.log = e.log.With(slog.Int64("JobID", param.JobID))
 	} else {
 		e.log.Error("任务没有注册", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-		returnCall2(param, FailureCode, "Task not registered", writer)
+		returnCall2(param, FailureCode, "Task not registered", w)
 		return
 	}
 
@@ -117,43 +117,38 @@ func (e *Executor) runTask(writer http.ResponseWriter, request *http.Request) {
 		e.callback(task, code, msg)
 	})
 	e.log.Info("任务开始执行", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-	returnCode(SuccessCode, writer)
+	returnCode(SuccessCode, w)
 }
 
 // 删除一个任务
-func (e *Executor) killTask(writer http.ResponseWriter, request *http.Request) {
-	var param killReq
+func (e *Executor) killTask(w http.ResponseWriter, request *http.Request) {
+	var param KillParam
 	BindAndClose(request, &param)
 
 	if task, ok := e.runList.LoadAndDel(param.JobID); ok {
 		task.cancel()
-		returnCode(SuccessCode, writer)
+		// returnCode(SuccessCode, w)
+		JsonTo(http.StatusOK, ReturnSuccess, w)
 		return
 	}
 
 	e.log.Error("任务没有运行", slog.Int64("JobID", param.JobID))
-	returnCode(FailureCode, writer)
+	// returnCode(FailureCode, w)
+	JsonTo(http.StatusInternalServerError, ReturnFailure, w)
 }
 
 // 任务日志
-func (e *Executor) taskLog(writer http.ResponseWriter, request *http.Request) {
-	data, err := io.ReadAll(request.Body)
-	req := &LogReq{}
-	if err != nil {
+func (e *Executor) taskLog(w http.ResponseWriter, r *http.Request) {
+	var logParam LogParam
+	if err := BindAndClose(r, &logParam); err != nil {
 		e.log.Error("日志请求失败", slog.Any("error", err))
-		reqErrLogHandler(writer, req, err)
+		//reqErrLogHandler(writer, req, err)
+		JsonTo(http.StatusInternalServerError, reqErrLogHandler2(err), w)
 		return
 	}
-	err = json.Unmarshal(data, &req)
-	if err != nil {
-		e.log.Error("日志请求解析失败", slog.Any("error", err))
-		reqErrLogHandler(writer, req, err)
-		return
-	}
-	e.log.Info("日志请求参数", slog.Any("req", req))
-	res := e.logHandler(req)
-	str, _ := json.Marshal(res)
-	_, _ = writer.Write(str)
+	e.log.Info("日志请求参数", slog.Any("req", logParam))
+	logResult := e.logHandler(logParam)
+	JsonTo(http.StatusOK, logResult, w)
 }
 
 // 心跳检测
@@ -164,7 +159,7 @@ func (e *Executor) beat(writer http.ResponseWriter, _ *http.Request) {
 
 // 忙碌检测
 func (e *Executor) idleBeat(writer http.ResponseWriter, request *http.Request) {
-	var param idleBeatReq
+	var param IdleBeatParam
 	if err := BindAndClose(request, &param); err != nil {
 		e.log.Error("参数解析错误", slog.Any("error", err))
 		returnCode(FailureCode, writer)
@@ -185,7 +180,7 @@ func (e *Executor) registry() {
 
 	t := time.NewTimer(time.Second * 0) //初始立即执行
 	defer t.Stop()
-	req := &Registry{
+	regParam := &RegistryParam{
 		RegistryGroup: "EXECUTOR",
 		RegistryKey:   e.opts.RegistryKey,
 		RegistryValue: "http://" + e.address,
@@ -194,59 +189,85 @@ func (e *Executor) registry() {
 	for {
 		<-t.C
 		t.Reset(20 * time.Second) //20秒心跳防止过期
-		func() {
-			result, err := e.post("/api/registry", req)
+
+		{
+			resp, err := e.post("/api/registry", regParam)
 			if err != nil {
 				e.log.Error("执行器注册失败1", slog.Any("error", err))
 				return
 			}
-			var r res
-			if err := Bind(result.Body, &r); err != nil {
+			defer resp.Body.Close()
+
+			var r Return[string]
+			if err := Bind(resp.Body, &r); err != nil {
 				e.log.Error("执行器注册失败2", slog.Any("error", err))
+				return
 			}
-			defer result.Body.Close()
 
 			if r.Code != SuccessCode {
 				e.log.Error("执行器注册失败3", slog.Any("body", r))
 				return
 			}
 			e.log.Info("执行器注册成功", slog.Any("body", r))
-		}()
+		}
 	}
 }
 
 // 执行器注册摘除
 func (e *Executor) registryRemove() {
-	req := &Registry{
+	regParam := &RegistryParam{
 		RegistryGroup: "EXECUTOR",
 		RegistryKey:   e.opts.RegistryKey,
 		RegistryValue: "http://" + e.address,
 	}
-	res, err := e.post("/api/registryRemove", req)
+	resp, err := e.post("/api/registryRemove", regParam)
 	if err != nil {
-		e.log.Error("执行器摘除失败", slog.Any("error", err))
+		e.log.Error("执行器摘除失败1", slog.Any("error", err))
 		return
 	}
-	defer res.Body.Close()
-	_, _ = io.ReadAll(res.Body)
-	e.log.Info("执行器摘除成功", slog.Any("registry", req))
+	defer resp.Body.Close()
+
+	var r Return[string]
+	if err := Bind(resp.Body, &r); err != nil {
+		e.log.Error("执行器摘除失败2", slog.Any("error", err))
+		return
+	}
+
+	if r.Code != SuccessCode {
+		e.log.Error("执行器摘除失败3", slog.Any("body", r))
+		return
+	}
+	e.log.Info("执行器摘除成功", slog.Any("body", r))
 }
 
 // 回调任务列表
-func (e *Executor) callback(task Task, code int, msg string) {
+func (e *Executor) callback(task *Task, code int, msg string) {
 	e.runList.Del(task.ID)
-	res, err := e.post("/api/callback", newCall(task.Param, code, msg))
+	r, err := e.post("/api/callback", CallbackParamList{newCallback(task, code, msg)})
 	if err != nil {
 		e.log.Error("callback error", slog.Any("error", err))
 		return
 	}
-	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
+	defer r.Body.Close()
+	var rr Return[string]
+	if err := Bind(r.Body, &rr); err != nil {
 		e.log.Error("callback ReadBody error", slog.Any("error", err))
 		return
 	}
-	e.log.Info("任务回调成功", slog.String("body", string(body)))
+	e.log.Info("任务回调成功", slog.Any("body", rr))
+}
+
+func (e *Executor) post2(action string, body any) (rtn Return[string], err error) {
+	ry := resty.New().SetBaseURL(e.opts.ServerAddr)
+
+	_, err = ry.R().
+		SetBody(body).
+		SetResult(&rtn).
+		ForceContentType("application/json;charset=UTF-8").
+		SetHeader("XXL-JOB-ACCESS-TOKEN", e.opts.AccessToken).
+		Post(action)
+
+	return
 }
 
 func (e *Executor) post(action string, body any) (*http.Response, error) {
@@ -257,7 +278,7 @@ func (e *Executor) post(action string, body any) (*http.Response, error) {
 		return nil, err
 	}
 
-	request, err := http.NewRequest("POST", e.opts.ServerAddr+action, &bs)
+	request, err := http.NewRequest(http.MethodPost, e.opts.ServerAddr+action, &bs)
 	if err != nil {
 		return nil, err
 	}
