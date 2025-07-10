@@ -28,7 +28,7 @@ type Task struct {
 	e *Executor
 }
 
-func (t *Task) Run(callback func(code int, msg string)) {
+func (t *Task) run(callback func(code int, msg string)) {
 	defer func(cancel func()) {
 		if err := recover(); err != nil {
 			t.e.opts.log.Error("error", slog.Any("error", err))

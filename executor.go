@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -44,7 +45,7 @@ func NewExecutor(opts ...Option) *Executor {
 
 }
 
-func (e *Executor) Run() {
+func (e *Executor) Start() {
 	go e.registry()
 }
 
@@ -52,7 +53,7 @@ func (e *Executor) Use(middlewares ...Middleware) {
 	e.middlewares = middlewares
 }
 
-func (e *Executor) Stop() {
+func (e *Executor) Stop() error {
 	e.registryRemove()
 }
 
@@ -108,7 +109,7 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e.runList.Set(task.ID, task)
-	go task.Run(func(code int, msg string) {
+	go task.run(func(code int, msg string) {
 		e.callback(task, code, msg)
 	})
 	e.opts.log.Info("任务开始执行", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
@@ -174,6 +175,7 @@ func (e *Executor) idleBeat(w http.ResponseWriter, r *http.Request) {
 func (e *Executor) registry() {
 	t := time.NewTimer(time.Second * 0) //初始立即执行
 	defer t.Stop()
+
 	regParam := &RegistryParam{
 		RegistryGroup: "EXECUTOR",
 		RegistryKey:   e.opts.RegistryKey,
@@ -208,7 +210,7 @@ func (e *Executor) registry() {
 }
 
 // 执行器注册摘除
-func (e *Executor) registryRemove() {
+func (e *Executor) registryRemove() error {
 	regParam := &RegistryParam{
 		RegistryGroup: "EXECUTOR",
 		RegistryKey:   e.opts.RegistryKey,
@@ -217,38 +219,39 @@ func (e *Executor) registryRemove() {
 	resp, err := e.post("/api/registryRemove", regParam)
 	if err != nil {
 		e.opts.log.Error("执行器摘除失败1", slog.Any("error", err))
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	var r Return[string]
 	if err := Bind(resp.Body, &r); err != nil {
 		e.opts.log.Error("执行器摘除失败2", slog.Any("error", err))
-		return
+		return err
 	}
 
 	if r.Code != SuccessCode {
 		e.opts.log.Error("执行器摘除失败3", slog.Any("body", r))
-		return
+		return fmt.Errorf("error code = %d", r.Code)
 	}
 	e.opts.log.Info("执行器摘除成功", slog.Any("body", r))
+	return nil
 }
 
 // 回调任务列表
 func (e *Executor) callback(task *Task, code int, msg string) {
 	e.runList.Del(task.ID)
-	r, err := e.post("/api/callback", CallbackParamList{newCallback(task.Param, code, msg)})
+	resp, err := e.post("/api/callback", CallbackParamList{newCallback(task.Param, code, msg)})
 	if err != nil {
 		e.opts.log.Error("callback error", slog.Any("error", err))
 		return
 	}
-	defer r.Body.Close()
-	var rr Return[string]
-	if err := Bind(r.Body, &rr); err != nil {
+	defer resp.Body.Close()
+	var r Return[string]
+	if err := Bind(resp.Body, &r); err != nil {
 		e.opts.log.Error("callback ReadBody error", slog.Any("error", err))
 		return
 	}
-	e.opts.log.Info("任务回调成功", slog.Any("body", rr))
+	e.opts.log.Info("任务回调成功", slog.Any("body", r))
 }
 
 func (e *Executor) post(action string, body any) (*http.Response, error) {
