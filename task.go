@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 )
 
 // TaskFunc 任务执行函数
@@ -29,17 +30,42 @@ type Task struct {
 }
 
 func (t *Task) run(callback func(code int, msg string)) {
-	defer func(cancel func()) {
+	defer func() {
 		if err := recover(); err != nil {
 			t.e.opts.log.Error("error", slog.Any("error", err))
-			callback(FailureCode, fmt.Sprintf("task panic:%v", err))
-			cancel()
+			callback(FailureCode, panicTask(t, err))
 		}
-	}(t.cancel)
+	}()
 
-	if err := t.fn(t.ext, t); err != nil {
-		callback(FailureCode, err.Error())
+	if err := runTask(t); err != nil {
+		callback(FailureCode, failure(t, err))
 		return
 	}
-	callback(SuccessCode, "OK")
+	callback(SuccessCode, success(t))
+}
+
+func panicTask(task *Task, a any) string {
+	return fmt.Sprintf("Panic @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), error = %#v",
+		task.ID, task.Name, task.Param.LogID,
+		task.endTime-task.startTime, a)
+}
+
+func failure(task *Task, err error) string {
+	return fmt.Sprintf("Failure @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), error = %#v",
+		task.ID, task.Name, task.Param.LogID,
+		task.endTime-task.startTime, err)
+}
+
+func success(task *Task) string {
+	return fmt.Sprintf("Success @ ID = %d, Name = %s, LogID = %d, cost = %d(ms)",
+		task.ID, task.Name, task.Param.LogID,
+		task.endTime-task.startTime)
+}
+
+func runTask(task *Task) error {
+	defer task.cancel()
+	task.startTime = time.Now().UnixMilli()
+	err := task.fn(task.ext, task)
+	task.endTime = time.Now().UnixMilli()
+	return err
 }

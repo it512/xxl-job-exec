@@ -54,7 +54,7 @@ func (e *Executor) Use(middlewares ...Middleware) {
 }
 
 func (e *Executor) Stop() error {
-	e.registryRemove()
+	return e.registryRemove()
 }
 
 // RegTask 注册任务
