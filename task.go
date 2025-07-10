@@ -45,13 +45,13 @@ func (t *Task) run(callback func(code int, msg string)) {
 }
 
 func panicTask(task *Task, a any) string {
-	return fmt.Sprintf("Panic @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), error = %#v",
+	return fmt.Sprintf("Panic @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), panic = %#v",
 		task.ID, task.Name, task.Param.LogID,
 		task.endTime-task.startTime, a)
 }
 
 func failure(task *Task, err error) string {
-	return fmt.Sprintf("Failure @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), error = %#v",
+	return fmt.Sprintf("Failure @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), error = %s",
 		task.ID, task.Name, task.Param.LogID,
 		task.endTime-task.startTime, err)
 }

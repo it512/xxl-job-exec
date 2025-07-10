@@ -186,7 +186,7 @@ func (e *Executor) registry() {
 		<-t.C
 		t.Reset(20 * time.Second) //20秒心跳防止过期
 
-		{
+		func() {
 			resp, err := e.post("/api/registry", regParam)
 			if err != nil {
 				e.opts.log.Error("执行器注册失败1", slog.Any("error", err))
@@ -205,7 +205,7 @@ func (e *Executor) registry() {
 				return
 			}
 			e.opts.log.Info("执行器注册成功", slog.Any("body", r))
-		}
+		}()
 	}
 }
 
