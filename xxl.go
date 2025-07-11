@@ -42,19 +42,10 @@ type RegistryParam struct {
 type CallbackParamList []HandleCallbackParam
 
 type HandleCallbackParam struct {
-	LogID         int64         `json:"logId"`
-	LogDateTim    int64         `json:"logDateTim"`
-	ExecuteResult ExecuteResult `json:"executeResult omitempty"` // 3.1.1 不再需要
-	//以下是7.31版本 v2.3.0 Release所使用的字段
+	LogID      int64  `json:"logId"`
+	LogDateTim int64  `json:"logDateTim"`
 	HandleCode int    `json:"handleCode"` //200表示正常,500表示失败
 	HandleMsg  string `json:"handleMsg"`
-}
-
-// ExecuteResult 任务执行结果 200 表示任务执行正常，500表示失败
-// 3.1.1不在需要
-type ExecuteResult struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
 }
 
 /*****************  下行参数  *********************/
@@ -114,15 +105,6 @@ func JsonTo(code int, resp any, w http.ResponseWriter) error {
 	return enc.Encode(resp)
 }
 
-func BindAndClose(r *http.Request, p any) error {
-	defer r.Body.Close()
-	dec := json.NewDecoder(r.Body)
-	if err := dec.Decode(p); err != nil {
-		return err
-	}
-	return nil
-}
-
 func Bind(r io.Reader, p any) error {
 	dec := json.NewDecoder(r)
 	if err := dec.Decode(p); err != nil {
@@ -135,10 +117,6 @@ func newCallback(t TriggerParam, code int, msg string) HandleCallbackParam {
 	return HandleCallbackParam{
 		LogID:      t.LogID,
 		LogDateTim: t.LogDateTime,
-		ExecuteResult: ExecuteResult{
-			Code: code,
-			Msg:  msg,
-		},
 		HandleCode: code,
 		HandleMsg:  msg,
 	}

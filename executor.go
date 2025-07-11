@@ -67,11 +67,12 @@ func (e *Executor) RegTask(pattern string, task TaskFunc) {
 // 运行一个任务
 func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 	var param TriggerParam
-	if err := BindAndClose(r, &param); err != nil {
+	if err := Bind(r.Body, &param); err != nil {
 		e.opts.log.Error("参数解析错误", slog.Any("error", err))
 		JsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "params err")}, w)
 		return
 	}
+	defer r.Body.Close()
 
 	e.opts.log.Info("任务参数", slog.Any("param", param))
 
@@ -82,7 +83,7 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 			e.runList.Del(oldTask.ID)
 		} else { //单机串行,丢弃后续调度 都进行阻塞
 			e.opts.log.Error("任务已经在运行了", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-			JsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "tasks already running")}, w)
+			JsonTo(http.StatusOK, CallbackParamList{newCallback(param, FailureCode, "tasks already running")}, w)
 			return
 		}
 	}
@@ -119,10 +120,11 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 // 删除一个任务
 func (e *Executor) killTask(w http.ResponseWriter, r *http.Request) {
 	var param KillParam
-	if err := BindAndClose(r, &param); err != nil {
+	if err := Bind(r.Body, &param); err != nil {
 		JsonTo(http.StatusInternalServerError, ReturnFailure, w)
 		return
 	}
+	defer r.Body.Close()
 
 	if task, ok := e.runList.LoadAndDel(param.JobID); ok {
 		task.cancel()
@@ -131,17 +133,19 @@ func (e *Executor) killTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e.opts.log.Error("任务没有运行", slog.Int64("JobID", param.JobID))
-	JsonTo(http.StatusInternalServerError, ReturnFailure, w)
+	JsonTo(http.StatusOK, ReturnSuccess, w) // 注意这里返回Sucess
 }
 
 // 任务日志
 func (e *Executor) taskLog(w http.ResponseWriter, r *http.Request) {
 	var logParam LogParam
-	if err := BindAndClose(r, &logParam); err != nil {
+	if err := Bind(r.Body, &logParam); err != nil {
 		e.opts.log.Error("日志请求失败", slog.Any("error", err))
 		JsonTo(http.StatusInternalServerError, reqErrLogHandler(err), w)
 		return
 	}
+	defer r.Body.Close()
+
 	e.opts.log.Info("日志请求参数", slog.Any("req", logParam))
 	logResult := e.opts.logHandler(logParam)
 	JsonTo(http.StatusOK, logResult, w)
@@ -156,11 +160,13 @@ func (e *Executor) beat(w http.ResponseWriter, _ *http.Request) {
 // 忙碌检测
 func (e *Executor) idleBeat(w http.ResponseWriter, r *http.Request) {
 	var param IdleBeatParam
-	if err := BindAndClose(r, &param); err != nil {
+	if err := Bind(r.Body, &param); err != nil {
 		e.opts.log.Error("参数解析错误", slog.Any("error", err))
 		JsonTo(http.StatusInternalServerError, ReturnFailure, w)
 		return
 	}
+	defer r.Body.Close()
+
 	e.opts.log.Info("忙碌检测任务参数", slog.Any("param", param))
 
 	if _, ok := e.runList.Get(param.JobID); ok {
