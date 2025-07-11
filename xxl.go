@@ -122,6 +122,7 @@ func newCallback(t TriggerParam, code int, msg string) HandleCallbackParam {
 	}
 }
 
+/*
 func newReturn[T any](code int, msg string, content T) Return[T] {
 	data := Return[T]{
 		Code:    code,
@@ -130,6 +131,21 @@ func newReturn[T any](code int, msg string, content T) Return[T] {
 	}
 	return data
 }
+*/
 
-var ReturnSuccess = Return[string]{Code: SuccessCode}
-var ReturnFailure = Return[string]{Code: FailureCode}
+var ReturnSuccess = Success("")
+var ReturnFailure = Failure("")
+
+func Success(msg string) Return[string] {
+	return Return[string]{
+		Code: SuccessCode,
+		Msg:  msg,
+	}
+}
+
+func Failure(msg string) Return[string] {
+	return Return[string]{
+		Code: FailureCode,
+		Msg:  msg,
+	}
+}
