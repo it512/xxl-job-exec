@@ -195,19 +195,19 @@ func (e *Executor) registry() {
 		func() {
 			resp, err := e.post("/api/registry", regParam)
 			if err != nil {
-				e.opts.log.Error("执行器注册失败1", slog.Any("error", err))
+				e.opts.log.Error("执行器注册失败1", slog.Any("error", err), slog.Any("param", regParam))
 				return
 			}
 			defer resp.Body.Close()
 
 			var r Return[string]
 			if err := Bind(resp.Body, &r); err != nil {
-				e.opts.log.Error("执行器注册失败2", slog.Any("error", err))
+				e.opts.log.Error("执行器注册失败2", slog.Any("error", err), slog.Any("param", regParam))
 				return
 			}
 
 			if r.Code != SuccessCode {
-				e.opts.log.Error("执行器注册失败3", slog.Any("body", r))
+				e.opts.log.Error("执行器注册失败3", slog.Any("body", r), slog.Any("param", regParam))
 				return
 			}
 			e.opts.log.Info("执行器注册成功", slog.Any("body", r))

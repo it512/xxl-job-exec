@@ -32,7 +32,7 @@ type Task struct {
 func (t *Task) run(callback func(code int, msg string)) {
 	defer func() {
 		if err := recover(); err != nil {
-			t.e.opts.log.Error("error", slog.Any("error", err))
+			t.e.opts.log.Error("task panic", slog.Any("panic", err), slog.Int64("JobID", t.ID))
 			callback(FailureCode, panicTask(t, err))
 		}
 	}()
