@@ -6,8 +6,8 @@ type taskList[K comparable, V any] struct {
 	data sync.Map
 }
 
-func newTaskHeadList() *taskList[string, TaskHead] {
-	return &taskList[string, TaskHead]{}
+func newTaskHeadList() *taskList[string, taskHead] {
+	return &taskList[string, taskHead]{}
 }
 
 func newTaskList() *taskList[int64, *Task] {

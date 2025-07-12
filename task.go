@@ -10,7 +10,7 @@ import (
 // TaskFunc 任务执行函数
 type TaskFunc func(cxt context.Context, task *Task) error
 
-type TaskHead struct {
+type taskHead struct {
 	Name string
 	fn   TaskFunc
 }
