@@ -41,6 +41,7 @@ func (t *Task) run(callback func(code int, msg string)) {
 		callback(FailureCode, failure(t, err))
 		return
 	}
+
 	callback(SuccessCode, success(t))
 }
 
@@ -63,9 +64,10 @@ func success(task *Task) string {
 }
 
 func runTask(task *Task) error {
-	defer task.cancel()
+	defer func() {
+		task.endTime = time.Now().UnixMilli()
+		task.cancel()
+	}()
 	task.startTime = time.Now().UnixMilli()
-	err := task.fn(task.ext, task)
-	task.endTime = time.Now().UnixMilli()
-	return err
+	return task.fn(task.ext, task)
 }
