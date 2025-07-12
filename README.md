@@ -6,18 +6,18 @@
 
 1. 修复了原库中Task被其他routing修改的bug
 2. 适配xxl-job 3.1.1，考虑维护性删除对xxl-job 2 版本的支持
-3. 调整TaskFunc为·func(context.Context, *Task) error·
+3. 调整TaskFunc为 `func(context.Context, *Task) error`
 4. 统一调整返回值和java版本一致（便于核对，维护）
 5. 移除原库Log的实现，替换成标注库中的slog
 6. go.mod 升级到1.23
 7. 移除ipv4的依赖，现在需要明确设置执行器的URL
 8. 移除Executor接口，直接返回 *Executor
-9. 提供Executor.Handle()方法，返回一个http.Handle方便与其他web框架集成
+9. 提供`Executor.Handle()`方法，返回一个`http.Handle`方便与其他web框架集成
 
 ## 后续计划和调整
 
 - [ ] 输出日志还是延续原来做法，后续会被调整
-- [ ] 提供一个默认的基于slog输出日志文件的logHandle 便于从xxl-job管理端查看日志
+- [ ] 提供一个默认的基于slog输出日志文件的logHandle 便于从`xxl-job`管理端查看日志
 - [ ] 对老代码风格统一调整
 
 ## 一些需要注意且很重要的问题
