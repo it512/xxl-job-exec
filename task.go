@@ -45,6 +45,15 @@ func (t *Task) run(callback func(code int, msg string)) {
 	callback(SuccessCode, success(t))
 }
 
+func runTask(task *Task) error {
+	defer func() {
+		task.endTime = time.Now().UnixMilli()
+		task.cancel()
+	}()
+	task.startTime = time.Now().UnixMilli()
+	return task.fn(task.ext, task)
+}
+
 func panicTask(task *Task, a any) string {
 	return fmt.Sprintf("Panic @ ID = %d, Name = %s, LogID = %d, cost = %d(ms), panic = %#v",
 		task.ID, task.Name, task.Param.LogID,
@@ -61,13 +70,4 @@ func success(task *Task) string {
 	return fmt.Sprintf("Success @ ID = %d, Name = %s, LogID = %d, cost = %d(ms)",
 		task.ID, task.Name, task.Param.LogID,
 		task.endTime-task.startTime)
-}
-
-func runTask(task *Task) error {
-	defer func() {
-		task.endTime = time.Now().UnixMilli()
-		task.cancel()
-	}()
-	task.startTime = time.Now().UnixMilli()
-	return task.fn(task.ext, task)
 }

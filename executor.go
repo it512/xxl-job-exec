@@ -292,8 +292,5 @@ func (e *Executor) Handle(path string) http.Handler {
 	mux.HandleFunc("POST "+path+"/log", e.taskLog)
 	mux.HandleFunc("POST "+path+"/beat", e.beat)
 	mux.HandleFunc("POST "+path+"/idleBeat", e.idleBeat)
-	mux.HandleFunc("GET /xxl-job/run", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "run")
-	})
 	return mux
 }
