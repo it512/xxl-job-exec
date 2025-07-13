@@ -47,7 +47,7 @@ func main() {
 
 	mux := chi.NewMux()
 
-	mux.Mount("/xxl-job", exec.Handle())
+	mux.Mount("/xxl-job", exec.Handle("/xxl-job"))
 
 	http.ListenAndServe(":10010", mux)
 }

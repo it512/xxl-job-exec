@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -279,12 +281,19 @@ func (e *Executor) post(action string, body any) (*http.Response, error) {
 	return e.opts.client.Do(request)
 }
 
-func (e *Executor) Handle() http.Handler {
+func (e *Executor) Handle(path string) http.Handler {
+	if !strings.HasPrefix(path, "/") {
+		panic(errors.New("path must start with /"))
+	}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /run", e.runTask)
-	mux.HandleFunc("POST /kill", e.killTask)
-	mux.HandleFunc("POST /log", e.taskLog)
-	mux.HandleFunc("POST /beat", e.beat)
-	mux.HandleFunc("POST /idleBeat", e.idleBeat)
+	mux.HandleFunc("POST "+path+"/run", e.runTask)
+	mux.HandleFunc("POST "+path+"/kill", e.killTask)
+	mux.HandleFunc("POST "+path+"/log", e.taskLog)
+	mux.HandleFunc("POST "+path+"/beat", e.beat)
+	mux.HandleFunc("POST "+path+"/idleBeat", e.idleBeat)
+	mux.HandleFunc("GET /xxl-job/run", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "run")
+	})
 	return mux
 }
