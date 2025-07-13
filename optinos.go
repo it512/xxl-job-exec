@@ -22,6 +22,7 @@ type Option func(o *Options)
 var (
 	DefaultExecutorPort = "19999"
 	DefaultRegistryKey  = "golang-jobs-plus"
+	DefaultAccessToken  = "default_token"
 )
 
 // ServerAddr 设置调度中心地址

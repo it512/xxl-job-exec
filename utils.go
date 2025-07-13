@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func jsonTo(code int, resp any, w http.ResponseWriter) error {
@@ -19,4 +20,9 @@ func bind(r io.Reader, p any) error {
 		return err
 	}
 	return nil
+}
+
+func TaskJsonParam(task *Task, p any) error {
+	r := strings.NewReader(task.Param.ExecutorParams)
+	return bind(r, p)
 }

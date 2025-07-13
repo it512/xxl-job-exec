@@ -26,6 +26,7 @@ type Executor struct {
 func NewExecutor(opts ...Option) *Executor {
 	opt := Options{
 		RegistryKey: DefaultRegistryKey,
+		AccessToken: DefaultAccessToken,
 
 		log:        slog.Default(),
 		rootCtx:    context.Background(),
@@ -210,7 +211,7 @@ func (e *Executor) registry() {
 				e.opts.log.Error("执行器注册失败3", slog.Any("body", r), slog.Any("param", regParam))
 				return
 			}
-			e.opts.log.Info("执行器注册成功", slog.Any("body", r))
+			e.opts.log.Info("执行器注册成功", slog.Any("param", regParam))
 		}()
 	}
 }
