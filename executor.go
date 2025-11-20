@@ -72,7 +72,7 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 	var param TriggerParam
 	if err := bind(r.Body, &param); err != nil {
 		e.opts.log.Error("参数解析错误", slog.Any("error", err))
-		jsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "params err")}, w)
+		jsonToNoErr(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "params err")}, w)
 		return
 	}
 	defer r.Body.Close()
@@ -86,7 +86,7 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 			e.runList.Del(oldTask.ID)
 		} else { //单机串行,丢弃后续调度 都进行阻塞
 			e.opts.log.Error("任务已经在运行了", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-			jsonTo(http.StatusOK, CallbackParamList{newCallback(param, FailureCode, "tasks already running")}, w)
+			_ = jsonTo(http.StatusOK, CallbackParamList{newCallback(param, FailureCode, "tasks already running")}, w)
 			return
 		}
 	}
@@ -108,7 +108,7 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		e.opts.log.Error("任务没有注册", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-		jsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "task not registred")}, w)
+		_ = jsonTo(http.StatusInternalServerError, CallbackParamList{newCallback(param, FailureCode, "task not registred")}, w)
 		return
 	}
 
@@ -117,14 +117,14 @@ func (e *Executor) runTask(w http.ResponseWriter, r *http.Request) {
 		e.callback(task, code, msg)
 	})
 	e.opts.log.Info("任务开始执行", slog.Int64("JobID", param.JobID), slog.String("executorHandler", param.ExecutorHandler))
-	jsonTo(http.StatusOK, ReturnSuccess, w)
+	_ = jsonTo(http.StatusOK, ReturnSuccess, w)
 }
 
 // 删除一个任务
 func (e *Executor) killTask(w http.ResponseWriter, r *http.Request) {
 	var param KillParam
 	if err := bind(r.Body, &param); err != nil {
-		jsonTo(http.StatusInternalServerError, ReturnFailure, w)
+		_ = jsonTo(http.StatusInternalServerError, ReturnFailure, w)
 		return
 	}
 	defer r.Body.Close()
@@ -213,7 +213,7 @@ func (e *Executor) registry() {
 				e.opts.log.Error("执行器注册失败3", slog.Any("body", r), slog.Any("param", regParam))
 				return
 			}
-			e.opts.log.Info("执行器注册成功", slog.Any("param", regParam))
+			// e.opts.log.Info("执行器注册成功", slog.Any("param", regParam))
 		}()
 	}
 }
