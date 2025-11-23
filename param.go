@@ -19,8 +19,8 @@ func (e *Executor) chain(next TaskFunc) TaskFunc {
 // 通用响应
 type Return[T any] struct {
 	Code    int    `json:"code"`              // 200 表示正常、其他失败
-	Msg     string `json:"msg omitempty"`     // 错误提示消息
-	Content T      `json:"content omitempty"` // 响应内容
+	Msg     string `json:"msg,omitempty"`     // 错误提示消息
+	Content T      `json:"content,omitempty"` // 响应内容
 }
 
 /*****************  上行参数  *********************/
