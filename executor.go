@@ -3,7 +3,7 @@ package xxl
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -266,8 +266,8 @@ func (e *Executor) callback(task *Task, code int, msg string) {
 func (e *Executor) post(action string, body any) (*http.Response, error) {
 	var bs bytes.Buffer
 	bs.Grow(512)
-	enc := json.NewEncoder(&bs)
-	if err := enc.Encode(body); err != nil {
+
+	if err := json.MarshalWrite(&bs, body); err != nil {
 		return nil, err
 	}
 
