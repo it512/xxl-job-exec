@@ -3,7 +3,6 @@ package xxl
 import (
 	"bytes"
 	"context"
-	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -267,7 +266,7 @@ func (e *Executor) post(action string, body any) (*http.Response, error) {
 	var bs bytes.Buffer
 	bs.Grow(512)
 
-	if err := json.MarshalWrite(&bs, body); err != nil {
+	if err := marshalWrite(&bs, body); err != nil {
 		return nil, err
 	}
 
