@@ -3,6 +3,7 @@ package xxl
 import (
 	"encoding/json"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 )
@@ -33,4 +34,9 @@ func bind(r io.Reader, p any) error {
 func TaskJsonParam(task *Task, p any) error {
 	r := strings.NewReader(task.Param.ExecutorParams)
 	return bind(r, p)
+}
+
+func rndUrl(urls []string) string {
+	index := rand.IntN(len(urls))
+	return urls[index]
 }

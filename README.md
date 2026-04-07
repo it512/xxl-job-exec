@@ -9,10 +9,11 @@
 3. 调整TaskFunc为 `func(context.Context, *Task) error`
 4. 统一调整返回值和java版本一致（便于核对，维护）
 5. 移除原库Log的实现，替换成标注库中的slog
-6. go.mod 升级到1.23
-7. 移除ipv4的依赖，现在需要明确设置执行器的URL
+6. go.mod 升级到1.25
+7. 移除ipv4的依赖，现在需要明确设置执行器的URL, 这意味着您需要自行解决获取本地ip
 8. 移除Executor接口，直接返回 *Executor
 9. 提供`Executor.Handle()`方法，返回一个`http.Handle`方便与其他web框架集成
+10. 允许提供多个xxljob服务地址，每次随机选择一个注册
 
 ## 后续计划和调整
 

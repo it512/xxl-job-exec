@@ -270,7 +270,9 @@ func (e *Executor) post(action string, body any) (*http.Response, error) {
 		return nil, err
 	}
 
-	request, err := http.NewRequest(http.MethodPost, e.opts.ServerAddr+action, &bs)
+	url := rndUrl(e.opts.ServerAddr)
+
+	request, err := http.NewRequest(http.MethodPost, url+action, &bs)
 	if err != nil {
 		return nil, err
 	}

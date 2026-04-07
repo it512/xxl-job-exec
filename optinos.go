@@ -6,10 +6,11 @@ import (
 )
 
 type Options struct {
-	ServerAddr  string `json:"server_addr"`  //调度中心地址
-	AccessToken string `json:"access_token"` //请求令牌
-	ExecutorURL string `json:"executor_url"` //本地(执行器)URL
-	RegistryKey string `json:"registry_key"` //执行器名称
+	AccessToken string //请求令牌
+	ExecutorURL string //本地(执行器) URL
+	RegistryKey string //执行器名称
+
+	ServerAddr []string //调度中心地址
 
 	log        *slog.Logger
 	client     Doer
@@ -26,9 +27,9 @@ var (
 )
 
 // ServerAddr 设置调度中心地址
-func ServerAddr(addr string) Option {
+func ServerAddr(urls ...string) Option {
 	return func(o *Options) {
-		o.ServerAddr = addr
+		o.ServerAddr = urls
 	}
 }
 
