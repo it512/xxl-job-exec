@@ -39,7 +39,7 @@ type HandleCallbackParam struct {
 	LogID      int64  `json:"logId"`
 	LogDateTim int64  `json:"logDateTim"`
 	HandleCode int    `json:"handleCode"` //200表示正常,500表示失败
-	HandleMsg  string `json:"handleMsg"`
+	HandleMsg  string `json:"handleMsg,omitempty"`
 }
 
 /*****************  下行参数  *********************/
